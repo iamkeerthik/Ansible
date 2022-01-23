@@ -1,0 +1,291 @@
+sudo su
+sudo yum update -y
+
+Download package
+-> wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+Now do -> ls
+
+Install pacakage
+-> yum install epel-rerlease-latest.7.noarch.rpm
+
+sudo yum update
+
+Now we have to install all the packages one by one
+-> yum install git python python-level python-pip openssl ansible -y
+
+Now go to host file inside ansible server and paste private ip of node1 and node2
+-> vi /etc/ansible/hosts
+
+create a group
+
+[demo]
+private IP 1
+private IP 2
+
+
+Now this host file is only working after updating ansible.cfg file
+-> vi /etc/ansible/ansible.cfg
+Uncomment
+#inventory = /etc/ansible/hosts
+# sudo-user = root
+
+Now create one user, in all the three instances
+-> adduser ansible
+Now set password for this user
+-> passwd ansible
+Now switch as ansible user
+-> su – ansible
+This ansible user don’t have sudo priviledges right now. If you want to give sudo pprvilege to ansible user
+
+switch to root user the edit file
+ -> visudo
+ 
+Now go inside this file and add this line below root 
+Root 	ALL= (ALL) 	ALL
+ansible ALL= (ALL) 	NOPASSWD: ALL
+:wq!
+Now do this thing in other nodes also
+ 
+ 
+Now establish connection between server and node, go to ansible server
+-> ssh <node1 privateip>
+o/p- permission denied
+now we have to do some changes in sshd-config file in all three server, 
+
+go to ansible server
+
+vi /etc/ssh/sshd_config
+
+Uncomment : PermitRootLogin yes
+	    PasswordAuthentication yes
+Comment:  #PasswordAuthentication no
+
+-> service sshd restart
+Now you can ssh into node server through server
+-> ssh <node_private_ip>
+
+
+    Trust relationship:
+
+Configure ssh without password
+Trust relationship must be in same level
+ex: user - user, root - root
+
+Go to ansible server
+->ssh-keygen
+-> ls -a
+o/p: .ssh
+->cd .ssh
+->ls
+o/p: id_rsa id_rsa_pub
+->ssh-copy-id ansible@<node private ip> 
+ Enter password
+ It will copy public key to node
+ Now try  ssh from server to node
+ 
+Host Patterns
+
+-> ansible all --list-hosts // list all nodes in inventory
+-> ansible <group_name> --list-hosts //list all nodes in specified group
+
+-> ansible <group_name>[0] --list-hosts 
+//host no starts from 0 and last host represented by -1
+
+-> ansible <group_name>[-1] --list-hosts // list last host
+-> ansible <group_name>[0:3] --list-hosts // range of hosts
+->ansible <group_name>[0:5]:<group_name>[3:5] //list hosts from multiple groups
+
+------------------------------------------------------------------------------------
+Ansible Usage
+------------------------------------------------------------------------------------
+ 3 methods to work with ansible
+ 
+ 1.Ad-hoc: (linux commnads)
+ For simple single works like install httpd, list files etc.
+ No Idempotency here, means if you create one file and run that command again it will overwrite that file again.
+ 
+ Go to ansible server
+ ex: as ansible user
+-> ansible demo -a "ls"
+-> ansible all -a "touch abc"
+-> ansible demo[0] "sudo yum install httpd -y"
+-> ansible demo[1] -ba "yum install httpd -y"
+     a: argument  
+     b: become (use instead of sudo)
+     
+ 2. Ansible modules
+  ->ansible ships with no of  modules (called module library) that can be executed directly on remote hosts or through playbook
+  
+  EX:
+   -> ansible demo -b -m yum -a "pkg=httpd state=present"
+   -> ansible demo[0] -b -m yum -a "pkg=httpd state=latest"
+
+    present: install absent: remove latest: update
+    
+   -> ansible demo -b -m service -a "name=httpd state=started"
+   ->  ansible demo -b -m service -a "name=httpd state=stopped"
+   -> ansible demo -b -m yum -a "pkg=httpd state=absent"
+   -> ansible demo -b -m user -a "name=kirik"
+    to delete user throgh add-hoc :-> ansible demo -ba "userdel -r kirik"
+    
+   -> ansible demo -b -m copy -a "src=serverfile dest=/tmp"
+ Setup will show the cuurent status of nodes (helps for Idempotency)
+    ansible demo -m setup // return current status of all nodes in demo group
+    ansible demo -m setup -a "filter=*ipv4*" // return nodes ip address details
+    
+    
+Ansible Playbook
+
+It is a ansible file contains code written in YAML format
+each playbook composed of one or more modules in a list, modules are collection of configuration files.
+
+Target section:
+
+-> vi target.yml
+--- #my first target playbook
+- hosts: demo
+  user: ansible
+  become: yes
+  connection: ssh
+  gather_facts: yes
+...
+
+-> ansible-playbook target.yml 
+
+Dry run
+-> ansible-playbook traget.yml --check 
+it will check code syntax without executing code and show result
+
+Task section:
+
+-> vi task.yml
+--- #task playbook
+- hosts: demo
+  user: ansible
+  become: yes
+  connection: ssh
+  tasks:
+          - name: Install httpd on linux
+            action: yum name=httpd state=installed
+
+-> ansible-playbook task.yml
+
+Varibale section:
+
+-> vi vars.yml
+--- #vars playbook
+- hosts: demo
+  user: ansible
+  become: yes
+  connection: ssh
+  vars:
+          pkgname: httpd
+  tasks:
+          - name: Install httpd on linux
+            action: yum name='{{pkgname}}' state=installed
+
+-> ansible-playbook vars.yml
+
+Handler section:
+
+-> vi handler.yml
+--- #Handler playbook
+- hosts: demo
+  user: ansible
+  become: yes
+  connection: ssh
+  tasks:
+          - name: Install Httpd on linux
+            action: yum name=httpd state=installed
+            notify: restart httpd // just message
+  handlers:
+          - name: restart httpd // must be same as top notify message
+            action: service name=httpd state=restarted
+
+-> ansible-playbook hanlder.yml
+
+ Loops section:
+ 
+-> vi loops.yml
+--- #Loops playbook
+- hosts: demo
+  user: ansible
+  become: yes
+  connection: ssh
+  tasks:
+         - name: add list of users
+           user: name='{{item}}' state=present
+           with_items:
+                   - kirik   // it will add this users one by one
+                   - varun      in a loop
+                   - kedar
+                   - varsha
+
+-> ansible-playbook loops.yml
+you can verify user details in nodes
+-> ansible demo -ba "cat /etc/passwd"
+o/p: You will find this user name at the end of passwd file.
+
+
+ Conditions:
+ 
+ -> vi condition.yml
+ --- #coditions playbook
+- hosts: demo
+  user: ansible
+  become: yes
+  connection: ssh
+  tasks:
+          - name: installing apache on debian
+            command: apt-get install apache2 -y
+            when: ansible_os_family == "Debian"
+          - name: installing httpd on redhat
+            command: yum install httpd -y
+            when: ansible_os_family == "RedHat"
+
+ -> ansible-playbook condition.yml 
+ 
+ Vault:
+  To encrypt playbook to save sensitive data
+Create encrypted playbook
+-> ansible-vault create vault.yml
+
+Edit encrypted playbook
+ -> ansible-vault edit vault.yml 
+ 
+To change password:
+-> ansible-vault rekey vault.yml
+
+To encrypt existing playbook
+-> ansible-vault encrypt condition.yml
+
+To decrypt encrypted playbook
+-> ansible-vault decrypt condition.yml
+
+Ansible roles:
+Adding more and more functionality to playbook will make it diificult to maintain in a
+single file
+So, we use roles to organize tasks and encapsulating data needed to acomplish those tasks
+
+Lab:
+
+-> mkdir -p playbook/roles/webserver/tasks
+-> tree // just to see  directory structure
+-> cd playbook/
+-> vi master.yml
+-- # master playbook for roles
+ - hosts: demo
+   user: ansible
+   become: yes
+   connection: ssh
+   roles:
+          - webserver
+
+-> vi roles/webserver/tasks/main.yml
+ - name: installing apache server on linux
+   yum: name=httpd state=latest // we can write this in different way e.g: action: name=httpd state=installed or command: yum install httpd -y etc.
+esc -> :wq
+
+-> ansible-playbook master.yml
+// it will execute mail.yml from role webserver
