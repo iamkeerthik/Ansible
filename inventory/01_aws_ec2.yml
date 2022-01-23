@@ -1,0 +1,15 @@
+plugin: aws_ec2
+region:
+  - us-east-1
+# we can group servers based on different prefixes #Optional
+keyed_groups:
+  - prefix: arch
+    key: 'architecture'
+  - prefix: tag
+    key: 'tags'
+  - prefix: aws_region
+    key: placement.region
+
+
+# Install boto3 library before using plugin
+# pip install boto3

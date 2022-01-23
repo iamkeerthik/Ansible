@@ -1,0 +1,41 @@
+# ---
+# - hosts: qa  
+#   vars:
+#     # system: "Windows"
+#     system: "Linux"
+#     color: "Red"
+#   tasks:
+#     # - debug: var=hostvars  
+#     - debug: var=ansible_system
+#     - debug: var=color
+#       when: system == 'Linux'
+#     - debug: var=item
+#       with_items:
+#       - item1
+#       - item2
+
+--- #coditions and loops playbook
+- hosts: dev   #Play 1 Condtions
+  become: yes
+  tasks:
+          - name: installing apache on debian
+            shell: apt-get install apache2 -y
+            when: ansible_os_family == "Debian"
+          - name: installing httpd on redhat
+            shell: yum install httpd -y
+            when: ansible_os_family == "RedHat"
+
+- hosts: qa     #Play 2 Loops
+  become: yes
+  tasks:
+         - name: add list of users
+           user: name='{{item}}' state=present
+           with_items:
+                   - kirik   # it will add this users one by one in a loop
+                   - varun      
+                   - kedar
+                   - varsha
+
+
+
+

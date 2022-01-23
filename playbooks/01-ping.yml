@@ -1,0 +1,12 @@
+---
+- hosts: all      #play 1
+  tasks:
+    - name: ping all servers
+      action: ping
+    - debug: msg="Hello"
+
+- hosts: dev      #play 2
+  tasks:
+    - debug: msg="Hello dev"
+
+

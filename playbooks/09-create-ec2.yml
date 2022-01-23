@@ -1,0 +1,26 @@
+---
+- hosts: localhost      
+  tasks:
+    - ec2:
+        key_name: terraform-ec2
+        instance_type: t2.micro
+        image: ami-08e4e35cccc6189f4
+        region: us-east-1
+        # count: 1
+        exact_count: 2
+        # exact_count: 0 It will delete all servers with type http
+        count_tag: {type: http}
+        vpc_subnet_id: subnet-0dcb2704139224b6a
+        assign_public_ip: yes
+        group: ["http_sg"]
+        instance_tags: {type: http, Env: QA}
+        wait: yes
+      register: ec2_output
+    - debug: var=ec2_output
+
+# It is not recomended to create instance with ansible also it is not declarative (there is no state file)
+# if we run 2 time then it will create 2 instances &  also we need boto and boto3 to run this
+
+# But by applying exact_count and count_tag we can make it declarative
+    
+

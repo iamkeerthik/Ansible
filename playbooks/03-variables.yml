@@ -1,0 +1,14 @@
+---
+- hosts: dev  
+  vars_files:
+    - variables.yml
+  vars:
+    variable1: "PlayBookValue"  
+  tasks:
+    - name: Variable value
+      debug: msg="{{variable1}}"
+
+
+#Prefernce
+#Command Line variable(-e vraible_name="") > variables.yml > vars(defined in playbook)
+

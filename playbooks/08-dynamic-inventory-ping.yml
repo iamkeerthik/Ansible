@@ -1,0 +1,12 @@
+---
+- hosts: tag_Env_dev      #play 1 ,We can specify here tag_env_dev it will ping all the server have tag dev
+  tasks:
+    - name: ping all servers
+      action: ping
+    - debug: msg="Hello"
+
+- hosts: aws_ec2      #play 2
+  tasks:
+    - debug: msg="Hello dev"
+
+

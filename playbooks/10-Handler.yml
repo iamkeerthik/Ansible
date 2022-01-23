@@ -1,0 +1,12 @@
+--- #Handler playbook
+- hosts: demo
+  become: yes
+  tasks:
+          - name: Install Httpd on linux
+            action: yum name=httpd state=installed
+            notify: restart httpd # just message
+  handlers:
+          - name: restart httpd # must be same as top notify message
+            action: service name=httpd state=restarted
+  
+# Handler task will be executed by another task ex: once after installing httpd it will notify handler to restart httpd
